@@ -12,13 +12,21 @@ const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const clerkEnabled = clerkKey.startsWith("pk_") && !clerkKey.includes("placeholder");
 
 // Only import Clerk components when configured — evaluated once at module level
-const {
-  UserButton: ClerkUserButton,
-  SignInButton: ClerkSignInButton,
-  SignUpButton: ClerkSignUpButton,
-  useAuth: useClerkAuthHook,
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-} = clerkEnabled ? require("@clerk/nextjs") : ({} as Record<string, undefined>);
+const clerk = clerkEnabled ? require("@clerk/nextjs") : null;
+const ClerkSignedIn = clerk?.SignedIn as
+  | React.ComponentType<{ children: React.ReactNode }>
+  | undefined;
+const ClerkSignedOut = clerk?.SignedOut as
+  | React.ComponentType<{ children: React.ReactNode }>
+  | undefined;
+const ClerkUserButton = clerk?.UserButton as React.ComponentType | undefined;
+const ClerkSignInButton = clerk?.SignInButton as
+  | React.ComponentType<{ mode: string; children: React.ReactNode }>
+  | undefined;
+const ClerkSignUpButton = clerk?.SignUpButton as
+  | React.ComponentType<{ mode: string; children: React.ReactNode }>
+  | undefined;
 
 const navLinks = [
   { href: "/events", label: "Eventos" },
@@ -26,17 +34,9 @@ const navLinks = [
   { href: "/events?category=CONFERENCE", label: "Conferencias" },
 ];
 
-// Stable hook wrapper — always called, returns stub when Clerk is off
-function useAuthState() {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  if (clerkEnabled && useClerkAuthHook) return useClerkAuthHook() as { isSignedIn: boolean };
-  return { isSignedIn: false };
-}
-
 export function PublicNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const { isSignedIn } = useAuthState();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -68,47 +68,61 @@ export function PublicNav() {
 
         {/* Auth section */}
         <div className="flex items-center gap-3">
-          {isSignedIn ? (
+          {clerkEnabled && ClerkSignedIn && ClerkSignedOut ? (
             <>
-              <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
-                <Link href="/account/tickets">
-                  <Ticket className="w-4 h-4 mr-1.5" />
-                  Mis tickets
-                </Link>
-              </Button>
-              {ClerkUserButton && <ClerkUserButton />}
-            </>
-          ) : (
-            <>
-              {clerkEnabled && ClerkSignInButton ? (
-                <ClerkSignInButton mode="modal">
-                  <Button variant="ghost" size="sm" className="hidden sm:flex">
-                    Iniciar sesión
-                  </Button>
-                </ClerkSignInButton>
-              ) : (
-                <Button variant="ghost" size="sm" className="hidden sm:flex" asChild>
-                  <Link href="/sign-in">Iniciar sesión</Link>
+              <ClerkSignedIn>
+                <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
+                  <Link href="/account/tickets">
+                    <Ticket className="w-4 h-4 mr-1.5" />
+                    Mis tickets
+                  </Link>
                 </Button>
-              )}
-              {clerkEnabled && ClerkSignUpButton ? (
-                <ClerkSignUpButton mode="modal">
+                {ClerkUserButton && <ClerkUserButton />}
+              </ClerkSignedIn>
+              <ClerkSignedOut>
+                {ClerkSignInButton ? (
+                  <ClerkSignInButton mode="modal">
+                    <Button variant="ghost" size="sm" className="hidden sm:flex">
+                      Iniciar sesión
+                    </Button>
+                  </ClerkSignInButton>
+                ) : (
+                  <Button variant="ghost" size="sm" className="hidden sm:flex" asChild>
+                    <Link href="/sign-in">Iniciar sesión</Link>
+                  </Button>
+                )}
+                {ClerkSignUpButton ? (
+                  <ClerkSignUpButton mode="modal">
+                    <Button
+                      size="sm"
+                      className="gradient-brand-cta text-white border-0 hover:opacity-90"
+                    >
+                      Registrarse
+                    </Button>
+                  </ClerkSignUpButton>
+                ) : (
                   <Button
                     size="sm"
                     className="gradient-brand-cta text-white border-0 hover:opacity-90"
+                    asChild
                   >
-                    Registrarse
+                    <Link href="/sign-up">Registrarse</Link>
                   </Button>
-                </ClerkSignUpButton>
-              ) : (
-                <Button
-                  size="sm"
-                  className="gradient-brand-cta text-white border-0 hover:opacity-90"
-                  asChild
-                >
-                  <Link href="/sign-up">Registrarse</Link>
-                </Button>
-              )}
+                )}
+              </ClerkSignedOut>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" className="hidden sm:flex" asChild>
+                <Link href="/sign-in">Iniciar sesión</Link>
+              </Button>
+              <Button
+                size="sm"
+                className="gradient-brand-cta text-white border-0 hover:opacity-90"
+                asChild
+              >
+                <Link href="/sign-up">Registrarse</Link>
+              </Button>
             </>
           )}
 
@@ -131,14 +145,16 @@ export function PublicNav() {
                     {link.label}
                   </Link>
                 ))}
-                {isSignedIn && (
-                  <Link
-                    href="/account/tickets"
-                    onClick={() => setOpen(false)}
-                    className="text-base font-medium py-2 hover:text-[#3b82f6] transition-colors"
-                  >
-                    Mis tickets
-                  </Link>
+                {clerkEnabled && ClerkSignedIn && (
+                  <ClerkSignedIn>
+                    <Link
+                      href="/account/tickets"
+                      onClick={() => setOpen(false)}
+                      className="text-base font-medium py-2 hover:text-[#3b82f6] transition-colors"
+                    >
+                      Mis tickets
+                    </Link>
+                  </ClerkSignedIn>
                 )}
               </div>
             </SheetContent>
