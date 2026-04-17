@@ -38,3 +38,8 @@ next-env.d.ts
 
 # prisma
 /prisma/migrations
+
+/lib/generated/prisma
+
+# Personal notes
+ForRob.md

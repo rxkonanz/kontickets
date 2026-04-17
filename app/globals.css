@@ -7,8 +7,9 @@
 @layer base {
   .theme {
     --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans)
+    --font-sans: var(--font-sans);
   }
+
   :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
@@ -41,8 +42,16 @@
     --sidebar-accent: oklch(0.97 0 0);
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0)
+    --sidebar-ring: oklch(0.708 0 0);
+    /* Brand */
+    --brand-navy: #0d0d5c;
+    --brand-orange: #f97316;
+    --brand-magenta: #e040fb;
+    --brand-cyan: #06b6d4;
+    --brand-blue: #3b82f6;
+    --brand-yellow: #facc15;
   }
+
   .dark {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
@@ -74,15 +83,47 @@
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0)
+    --sidebar-ring: oklch(0.556 0 0);
   }
+
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
+  }
+}
+
+/* Brand gradient utilities */
+@layer utilities {
+  .gradient-brand-cta {
+    background: linear-gradient(135deg, #06b6d4, #3b82f6);
+  }
+
+  .gradient-brand-accent {
+    background: linear-gradient(135deg, #f97316, #e040fb);
+  }
+
+  .gradient-brand-navy {
+    background: linear-gradient(135deg, #0d0d5c, #1e1e8f);
+  }
+
+  .text-gradient-cta {
+    background: linear-gradient(135deg, #06b6d4, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-accent {
+    background: linear-gradient(135deg, #f97316, #e040fb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }

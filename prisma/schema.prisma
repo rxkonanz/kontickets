@@ -1,0 +1,441 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  BUYER
+  ORGANIZER
+  ADMIN
+}
+
+enum OrganizerStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  ENDED
+}
+
+enum EventCategory {
+  CONCERT
+  CONFERENCE
+  SPORT
+  FESTIVAL
+  THEATER
+  COMEDY
+  WORKSHOP
+  NETWORKING
+  EXHIBITION
+  OTHER
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  REQUIRES_ACTION
+  AUTHORIZED
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELLED
+}
+
+enum TicketStatus {
+  ISSUED
+  USED
+  CANCELLED
+  REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+}
+
+enum FeeType {
+  SERVICE_FEE
+  PROCESSING_FEE
+  TAX
+}
+
+enum PromoType {
+  FLAT
+  PERCENT
+}
+
+// ─────────────────────────────────────────────
+// USER & AUTH
+// ─────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  phone     String?
+  imageUrl  String?
+  role      Role     @default(BUYER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizer Organizer?
+  orders    Order[]
+  tickets   Ticket[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// ORGANIZER
+// ─────────────────────────────────────────────
+
+model Organizer {
+  id          String          @id @default(cuid())
+  userId      String          @unique
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  slug        String          @unique
+  description String?
+  logoUrl     String?
+  website     String?
+  status      OrganizerStatus @default(PENDING)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  events Event[]
+
+  @@map("organizers")
+}
+
+// ─────────────────────────────────────────────
+// VENUE
+// ─────────────────────────────────────────────
+
+model Venue {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  address   String
+  city      String
+  province  String
+  country   String   @default("Ecuador")
+  lat       Float?
+  lng       Float?
+  capacity  Int?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events Event[]
+
+  @@map("venues")
+}
+
+// ─────────────────────────────────────────────
+// EVENT
+// ─────────────────────────────────────────────
+
+model Event {
+  id            String        @id @default(cuid())
+  organizerId   String
+  organizer     Organizer     @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  venueId       String?
+  venue         Venue?        @relation(fields: [venueId], references: [id])
+  title         String
+  slug          String        @unique
+  description   String?
+  category      EventCategory @default(OTHER)
+  status        EventStatus   @default(DRAFT)
+  coverImageUrl String?
+  bannerUrl     String?
+  isOnline      Boolean       @default(false)
+  onlineUrl     String?
+  minAge        Int?
+  publishedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  sessions    EventSession[]
+  ticketTypes TicketType[]
+  orders      Order[]
+
+  @@map("events")
+}
+
+// ─────────────────────────────────────────────
+// EVENT SESSION (multi-date support)
+// ─────────────────────────────────────────────
+
+model EventSession {
+  id          String    @id @default(cuid())
+  eventId     String
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name        String?
+  startAt     DateTime
+  endAt       DateTime?
+  timezone    String    @default("America/Guayaquil")
+  doorsOpenAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("event_sessions")
+}
+
+// ─────────────────────────────────────────────
+// TICKET TYPE
+// ─────────────────────────────────────────────
+
+model TicketType {
+  id           String    @id @default(cuid())
+  eventId      String
+  event        Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  price        Int       // in cents
+  capacity     Int
+  reserved     Int       @default(0) // held during checkout (modified only in $transaction)
+  sold         Int       @default(0) // confirmed sold (modified only in $transaction)
+  maxPerOrder  Int       @default(10)
+  minPerOrder  Int       @default(1)
+  saleStartsAt DateTime?
+  saleEndsAt   DateTime?
+  perks        String[]
+  sortOrder    Int       @default(0)
+  isVisible    Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  orderItems OrderItem[]
+
+  @@map("ticket_types")
+}
+
+// ─────────────────────────────────────────────
+// ORDER
+// ─────────────────────────────────────────────
+
+model Order {
+  id             String      @id @default(cuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  eventId        String
+  event          Event       @relation(fields: [eventId], references: [id])
+  status         OrderStatus @default(DRAFT)
+  subtotal       Int         // in cents
+  fees           Int         @default(0)
+  tax            Int         @default(0)
+  total          Int         // subtotal + fees + tax
+  currency       String      @default("USD")
+  idempotencyKey String      @unique
+  expiresAt      DateTime?
+  confirmedAt    DateTime?
+  cancelledAt    DateTime?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  promoCodeId String?
+  promoCode   PromoCode? @relation(fields: [promoCodeId], references: [id])
+
+  items    OrderItem[]
+  payments Payment[]
+  tickets  Ticket[]
+  refunds  Refund[]
+  feeLines Fee[]
+
+  @@map("orders")
+}
+
+// ─────────────────────────────────────────────
+// ORDER ITEM
+// ─────────────────────────────────────────────
+
+model OrderItem {
+  id           String     @id @default(cuid())
+  orderId      String
+  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketTypeId String
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
+  quantity     Int
+  unitPrice    Int        // price snapshot at time of order
+  subtotal     Int        // quantity * unitPrice
+  createdAt    DateTime   @default(now())
+
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────────
+// PAYMENT
+// ─────────────────────────────────────────────
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String
+  order             Order         @relation(fields: [orderId], references: [id])
+  status            PaymentStatus @default(INITIATED)
+  provider          String        @default("stripe")
+  providerPaymentId String?       @unique
+  amount            Int           // in cents
+  currency          String        @default("USD")
+  metadata          Json?
+  failureCode       String?
+  failureMessage    String?
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  refunds Refund[]
+
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────
+// TICKET
+// ─────────────────────────────────────────────
+
+model Ticket {
+  id           String       @id @default(cuid())
+  code         String       @unique
+  orderId      String
+  order        Order        @relation(fields: [orderId], references: [id])
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+  ticketTypeId String
+  status       TicketStatus @default(ISSUED)
+  issuedAt     DateTime     @default(now())
+  cancelledAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  attendee Attendee?
+  checkIn  CheckIn?
+
+  @@map("tickets")
+}
+
+// ─────────────────────────────────────────────
+// ATTENDEE
+// ─────────────────────────────────────────────
+
+model Attendee {
+  id        String   @id @default(cuid())
+  ticketId  String   @unique
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  cedula    String?
+  passport  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("attendees")
+}
+
+// ─────────────────────────────────────────────
+// CHECK-IN
+// ─────────────────────────────────────────────
+
+model CheckIn {
+  id        String   @id @default(cuid())
+  ticketId  String   @unique
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  scannedAt DateTime @default(now())
+  scannedBy String?
+  deviceId  String?
+  notes     String?
+
+  @@map("check_ins")
+}
+
+// ─────────────────────────────────────────────
+// REFUND
+// ─────────────────────────────────────────────
+
+model Refund {
+  id               String       @id @default(cuid())
+  orderId          String
+  order            Order        @relation(fields: [orderId], references: [id])
+  paymentId        String
+  payment          Payment      @relation(fields: [paymentId], references: [id])
+  status           RefundStatus @default(PENDING)
+  amount           Int          // in cents
+  reason           String?
+  providerRefundId String?      @unique
+  processedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@map("refunds")
+}
+
+// ─────────────────────────────────────────────
+// PROMO CODE
+// ─────────────────────────────────────────────
+
+model PromoCode {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  type       PromoType @default(PERCENT)
+  value      Int       // percent (0-100) or flat amount in cents
+  maxUses    Int?
+  usedCount  Int       @default(0)
+  validFrom  DateTime?
+  validUntil DateTime?
+  eventId    String?
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  orders Order[]
+
+  @@map("promo_codes")
+}
+
+// ─────────────────────────────────────────────
+// FEE
+// ─────────────────────────────────────────────
+
+model Fee {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type      FeeType
+  label     String
+  amount    Int      // in cents
+  createdAt DateTime @default(now())
+
+  @@map("fees")
+}
