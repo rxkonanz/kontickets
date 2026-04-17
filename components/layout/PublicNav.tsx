@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Menu, Ticket } from "lucide-react";
+import { Menu, Ticket, User } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -77,6 +77,12 @@ export function PublicNav() {
                     Mis tickets
                   </Link>
                 </Button>
+                <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
+                  <Link href="/account">
+                    <User className="w-4 h-4 mr-1.5" />
+                    Mi cuenta
+                  </Link>
+                </Button>
                 {ClerkUserButton && <ClerkUserButton />}
               </ClerkSignedIn>
               <ClerkSignedOut>
@@ -147,6 +153,13 @@ export function PublicNav() {
                 ))}
                 {clerkEnabled && ClerkSignedIn && (
                   <ClerkSignedIn>
+                    <Link
+                      href="/account"
+                      onClick={() => setOpen(false)}
+                      className="text-base font-medium py-2 hover:text-[#3b82f6] transition-colors"
+                    >
+                      Mi cuenta
+                    </Link>
                     <Link
                       href="/account/tickets"
                       onClick={() => setOpen(false)}
