@@ -14,19 +14,40 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kontickets.com";
+
 export const metadata: Metadata = {
   title: {
     default: "Kontickets — Entradas para eventos en Ecuador",
     template: "%s | Kontickets",
   },
   description:
-    "Compra entradas para conciertos, conferencias, festivales y más eventos en Ecuador.",
-  keywords: ["entradas", "tickets", "eventos", "Ecuador", "conciertos"],
+    "Compra entradas para conciertos, partidos, festivales y más eventos en Ecuador. Entradas digitales instantáneas, seguras y fáciles.",
+  keywords: ["entradas", "tickets", "eventos", "Ecuador", "conciertos", "fútbol", "festivales"],
+  metadataBase: new URL(appUrl),
   openGraph: {
     type: "website",
     locale: "es_EC",
-    url: process.env.NEXT_PUBLIC_APP_URL,
+    url: appUrl,
     siteName: "Kontickets",
+    title: "Kontickets — Entradas para eventos en Ecuador",
+    description:
+      "Compra entradas para conciertos, partidos, festivales y más eventos en Ecuador. Entradas digitales instantáneas, seguras y fáciles.",
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Kontickets — Entradas para eventos en Ecuador",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kontickets — Entradas para eventos en Ecuador",
+    description:
+      "Compra entradas para conciertos, partidos, festivales y más eventos en Ecuador.",
+    images: ["/opengraph-image.png"],
   },
 };
 
