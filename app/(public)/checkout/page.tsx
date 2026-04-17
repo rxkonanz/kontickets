@@ -1,7 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export default async function CheckoutPage() {
   const { userId } = await auth();

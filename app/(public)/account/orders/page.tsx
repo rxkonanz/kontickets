@@ -1,4 +1,3 @@
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { PriceDisplay } from "@/components/shared/PriceDisplay";
 import { getOrdersByUser } from "@/server/queries/orders";
 import { auth as clerkAuth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { formatDate, formatRelative } from "@/lib/utils";
+import { formatRelative } from "@/lib/utils";
 import { ShoppingBag } from "lucide-react";
 
 export default async function AccountOrdersPage() {

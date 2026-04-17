@@ -8,10 +8,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Calendar,
-  Users,
-  QrCode,
   PlusCircle,
-  BarChart3,
 } from "lucide-react";
 
 const navItems = [

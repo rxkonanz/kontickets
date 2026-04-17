@@ -1,6 +1,4 @@
-import { Suspense } from "react";
 import { EventCard } from "@/components/shared/EventCard";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -127,7 +125,7 @@ export default async function EventsPage({
                   </Badge>
                 )}
                 {params.city && <Badge variant="secondary">{params.city}</Badge>}
-                {params.q && <Badge variant="secondary">"{params.q}"</Badge>}
+                {params.q && <Badge variant="secondary">&quot;{params.q}&quot;</Badge>}
                 <Button variant="ghost" size="sm" className="h-6 text-xs" asChild>
                   <Link href="/events">Limpiar filtros</Link>
                 </Button>

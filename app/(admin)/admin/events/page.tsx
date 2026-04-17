@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { formatDate, formatRelative } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { EVENT_CATEGORIES } from "@/lib/constants";
 import { Calendar, ExternalLink } from "lucide-react";
 import Link from "next/link";

@@ -10,7 +10,6 @@ import {
   Users,
   Calendar,
   ShoppingBag,
-  Shield,
 } from "lucide-react";
 
 const navItems = [

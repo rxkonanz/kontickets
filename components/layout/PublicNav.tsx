@@ -8,23 +8,17 @@ import { Menu, Ticket } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-// Lazily use Clerk only when configured
 const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const clerkEnabled = clerkKey.startsWith("pk_") && !clerkKey.includes("placeholder");
 
-// Conditionally import Clerk components
-let ClerkUserButton: React.ComponentType<Record<string, unknown>> | null = null;
-let ClerkSignInButton: React.ComponentType<{ children: React.ReactNode; mode?: string }> | null = null;
-let ClerkSignUpButton: React.ComponentType<{ children: React.ReactNode; mode?: string }> | null = null;
-let useClerkAuth: (() => { isSignedIn: boolean | undefined }) | null = null;
-
-if (clerkEnabled) {
-  const clerk = require("@clerk/nextjs");
-  ClerkUserButton = clerk.UserButton;
-  ClerkSignInButton = clerk.SignInButton;
-  ClerkSignUpButton = clerk.SignUpButton;
-  useClerkAuth = clerk.useAuth;
-}
+// Only import Clerk components when configured — evaluated once at module level
+const {
+  UserButton: ClerkUserButton,
+  SignInButton: ClerkSignInButton,
+  SignUpButton: ClerkSignUpButton,
+  useAuth: useClerkAuthHook,
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+} = clerkEnabled ? require("@clerk/nextjs") : ({} as Record<string, undefined>);
 
 const navLinks = [
   { href: "/events", label: "Eventos" },
@@ -32,11 +26,17 @@ const navLinks = [
   { href: "/events?category=CONFERENCE", label: "Conferencias" },
 ];
 
+// Stable hook wrapper — always called, returns stub when Clerk is off
+function useAuthState() {
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  if (clerkEnabled && useClerkAuthHook) return useClerkAuthHook() as { isSignedIn: boolean };
+  return { isSignedIn: false };
+}
+
 export function PublicNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const authState = clerkEnabled && useClerkAuth ? useClerkAuth() : { isSignedIn: false };
-  const isSignedIn = authState.isSignedIn;
+  const { isSignedIn } = useAuthState();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">

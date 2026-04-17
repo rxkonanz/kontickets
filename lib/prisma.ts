@@ -1,5 +1,5 @@
 import { PrismaClient } from "@/lib/generated/prisma";
-import { Pool, neonConfig } from "@neondatabase/serverless";
+import { neonConfig } from "@neondatabase/serverless";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import ws from "ws";
 
@@ -15,9 +15,8 @@ function createClient(): PrismaClient {
     process.env.DATABASE_URL ??
     "postgresql://placeholder:placeholder@localhost/kontickets";
 
-  // Pool connects lazily — safe to construct even with placeholder URL
-  const pool = new Pool({ connectionString });
-  const adapter = new PrismaNeon(pool);
+  // PrismaNeon takes PoolConfig directly (Prisma adapter-neon v7+)
+  const adapter = new PrismaNeon({ connectionString });
   return new PrismaClient({ adapter });
 }
 

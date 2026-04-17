@@ -4,10 +4,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { prisma } from "@/lib/prisma";
-import { formatPrice, formatDate } from "@/lib/utils";
-import { Users, Ticket, BarChart3, Edit, ExternalLink } from "lucide-react";
+import { formatPrice } from "@/lib/utils";
+import { Users, Ticket, Edit, ExternalLink } from "lucide-react";
 
 interface Props {
   params: Promise<{ id: string }>;
