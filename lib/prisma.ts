@@ -1,10 +1,5 @@
 import { PrismaClient } from "@/lib/generated/prisma";
-import { neonConfig } from "@neondatabase/serverless";
-import { PrismaNeon } from "@prisma/adapter-neon";
-import ws from "ws";
-
-// Required for Neon serverless outside of edge runtimes
-neonConfig.webSocketConstructor = ws;
+import { PrismaNeonHttp } from "@prisma/adapter-neon";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -15,8 +10,8 @@ function createClient(): PrismaClient {
     process.env.DATABASE_URL ??
     "postgresql://placeholder:placeholder@localhost/kontickets";
 
-  // PrismaNeon takes PoolConfig directly (Prisma adapter-neon v7+)
-  const adapter = new PrismaNeon({ connectionString });
+  // HTTP transport — no WebSocket needed, works reliably in all serverless envs
+  const adapter = new PrismaNeonHttp(connectionString, {});
   return new PrismaClient({ adapter });
 }
 
