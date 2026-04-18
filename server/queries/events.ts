@@ -12,11 +12,13 @@ interface GetEventsOptions {
   offset?: number;
 }
 
-const dbUrl = process.env.DATABASE_URL ?? "";
-const dbConfigured = dbUrl.startsWith("postgresql://") && !dbUrl.includes("placeholder");
+function isDbConfigured() {
+  const url = process.env.DATABASE_URL ?? "";
+  return url.startsWith("postgresql://") && !url.includes("placeholder");
+}
 
 export async function getEvents(options: GetEventsOptions = {}): Promise<EventWithDetails[]> {
-  if (!dbConfigured) return filterMockEvents(options);
+  if (!isDbConfigured()) return filterMockEvents(options);
 
   const { status, category, city, q, limit = 50, offset = 0 } = options;
 
@@ -69,7 +71,7 @@ function filterMockEvents(options: GetEventsOptions): EventWithDetails[] {
 }
 
 export async function getEventBySlug(slug: string): Promise<EventWithDetails | null> {
-  if (!dbConfigured) return MOCK_EVENTS.find((e) => e.slug === slug) ?? null;
+  if (!isDbConfigured()) return MOCK_EVENTS.find((e) => e.slug === slug) ?? null;
 
   try {
     const result = await prisma.event.findUnique({
