@@ -69,17 +69,17 @@ async function main() {
     create: {
       organizerId: organizer.id,
       venueId: venue.id,
-      title: "Test Evento — Kontickets",
+      title: "Buebele - Prueba!",
       slug: "test-evento-kontickets",
       description:
         "Evento de prueba para verificar el flujo de compra de entradas en Kontickets. ¡Bienvenido a la plataforma!",
-      category: "OTHER",
+      category: "COMEDY",
       status: "PUBLISHED",
       coverImageUrl: "/test-event.jpg",
       publishedAt: new Date(),
     },
   });
-  console.log("✓ Event:", event.title);
+  console.log("✓ Event:", event.title, "| category:", event.category);
 
   // $0.99 ticket type (price in cents = 99)
   const existing = await prisma.ticketType.findFirst({
