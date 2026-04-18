@@ -10,11 +10,13 @@ import type { CartItem } from "@/types";
  * Uses a conditional SQL UPDATE (single statement) instead of an interactive
  * transaction — PrismaNeonHttp (HTTP mode) does not support interactive
  * transactions. A single-statement UPDATE is atomic at the DB level.
+ *
+ * Table name: "ticket_types" (Prisma maps model names to snake_case)
  */
 export async function reserveInventory(items: CartItem[]): Promise<void> {
   for (const item of items) {
     const updated: number = await prisma.$executeRaw`
-      UPDATE "TicketType"
+      UPDATE "ticket_types"
       SET    "reserved" = "reserved" + ${item.quantity}
       WHERE  "id" = ${item.ticketTypeId}
         AND  ("capacity" - "reserved" - "sold") >= ${item.quantity}
@@ -32,7 +34,7 @@ export async function reserveInventory(items: CartItem[]): Promise<void> {
 export async function releaseInventory(items: CartItem[]): Promise<void> {
   for (const item of items) {
     await prisma.$executeRaw`
-      UPDATE "TicketType"
+      UPDATE "ticket_types"
       SET    "reserved" = GREATEST(0, "reserved" - ${item.quantity})
       WHERE  "id" = ${item.ticketTypeId}
     `;
@@ -45,7 +47,7 @@ export async function releaseInventory(items: CartItem[]): Promise<void> {
 export async function confirmInventory(items: CartItem[]): Promise<void> {
   for (const item of items) {
     await prisma.$executeRaw`
-      UPDATE "TicketType"
+      UPDATE "ticket_types"
       SET    "reserved" = GREATEST(0, "reserved" - ${item.quantity}),
              "sold"     = "sold" + ${item.quantity}
       WHERE  "id" = ${item.ticketTypeId}
