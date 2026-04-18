@@ -23,32 +23,37 @@ export default async function CheckoutPage({
   const { eventId } = await searchParams;
   if (!eventId) redirect("/events");
 
+  // Use separate queries instead of findUnique+include — Prisma 7 HTTP mode
+  // (PrismaNeonHttp) triggers internal transactions for findUnique with includes,
+  // but simple findUnique/findMany without includes works fine.
   let event;
   try {
-    // findUnique on id only — no transaction needed in HTTP mode.
-    // Filtering by non-unique fields (status) triggers internal transactions
-    // which PrismaNeonHttp does not support, so we check status in code.
-    event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: {
-        venue: true,
-        ticketTypes: {
-          orderBy: { sortOrder: "asc" },
-        },
-      },
-    });
+    event = await prisma.event.findUnique({ where: { id: eventId } });
   } catch (err) {
-    console.error("[CheckoutPage] prisma.event.findUnique failed:", err);
+    console.error("[CheckoutPage] event lookup failed:", err);
     redirect("/events");
   }
 
   if (!event || event.status !== "PUBLISHED") redirect("/events");
 
-  // Filter visible ticket types in JS — avoids relation where clause
-  // which also triggers internal transactions in HTTP mode
-  event = { ...event, ticketTypes: event.ticketTypes.filter((t) => t.isVisible) };
+  let venue = null;
+  let ticketTypes: Awaited<ReturnType<typeof prisma.ticketType.findMany>> = [];
+  try {
+    [venue, ticketTypes] = await Promise.all([
+      event.venueId ? prisma.venue.findUnique({ where: { id: event.venueId } }) : null,
+      prisma.ticketType.findMany({
+        where: { eventId: event.id },
+        orderBy: { sortOrder: "asc" },
+      }),
+    ]);
+  } catch (err) {
+    console.error("[CheckoutPage] venue/ticketTypes lookup failed:", err);
+    redirect("/events");
+  }
 
-  const availableTicketTypes = event.ticketTypes.filter(
+  const visibleTicketTypes = ticketTypes.filter((t) => t.isVisible);
+
+  const availableTicketTypes = visibleTicketTypes.filter(
     (t) => t.capacity > t.sold + t.reserved
   );
 
@@ -64,7 +69,7 @@ export default async function CheckoutPage({
           title: event.title,
           slug: event.slug,
           coverImageUrl: event.coverImageUrl ?? null,
-          venue: event.venue ? `${event.venue.name}, ${event.venue.city}` : null,
+          venue: venue ? `${venue.name}, ${venue.city}` : null,
         }}
         ticketTypes={availableTicketTypes.map((t) => ({
           id: t.id,
