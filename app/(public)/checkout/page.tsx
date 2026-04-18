@@ -25,22 +25,28 @@ export default async function CheckoutPage({
 
   let event;
   try {
-    event = await prisma.event.findFirst({
-      where: { id: eventId, status: "PUBLISHED" },
+    // findUnique on id only — no transaction needed in HTTP mode.
+    // Filtering by non-unique fields (status) triggers internal transactions
+    // which PrismaNeonHttp does not support, so we check status in code.
+    event = await prisma.event.findUnique({
+      where: { id: eventId },
       include: {
         venue: true,
         ticketTypes: {
-          where: { isVisible: true },
           orderBy: { sortOrder: "asc" },
         },
       },
     });
   } catch (err) {
-    console.error("[CheckoutPage] prisma.event.findFirst failed:", err);
+    console.error("[CheckoutPage] prisma.event.findUnique failed:", err);
     redirect("/events");
   }
 
-  if (!event) redirect("/events");
+  if (!event || event.status !== "PUBLISHED") redirect("/events");
+
+  // Filter visible ticket types in JS — avoids relation where clause
+  // which also triggers internal transactions in HTTP mode
+  event = { ...event, ticketTypes: event.ticketTypes.filter((t) => t.isVisible) };
 
   const availableTicketTypes = event.ticketTypes.filter(
     (t) => t.capacity > t.sold + t.reserved

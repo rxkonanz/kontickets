@@ -59,7 +59,8 @@ export async function createOrderIntent(
   const idempotencyKey = nanoid();
   const expiresAt = new Date(Date.now() + CHECKOUT_EXPIRY_MINUTES * 60 * 1000);
 
-  // Create draft order
+  // Create draft order — no nested creates (Prisma wraps them in an interactive
+  // transaction which PrismaNeonHttp / HTTP mode does not support)
   const order = await prisma.order.create({
     data: {
       userId: user.id,
@@ -72,18 +73,21 @@ export async function createOrderIntent(
       currency: "USD",
       idempotencyKey,
       expiresAt,
-      items: {
-        create: items.map((item) => {
-          const tt = ticketTypes.find((t) => t.id === item.ticketTypeId)!;
-          return {
-            ticketTypeId: item.ticketTypeId,
-            quantity: item.quantity,
-            unitPrice: tt.price,
-            subtotal: tt.price * item.quantity,
-          };
-        }),
-      },
     },
+  });
+
+  // Create order items separately (createMany = single INSERT, no transaction)
+  await prisma.orderItem.createMany({
+    data: items.map((item) => {
+      const tt = ticketTypes.find((t) => t.id === item.ticketTypeId)!;
+      return {
+        orderId: order.id,
+        ticketTypeId: item.ticketTypeId,
+        quantity: item.quantity,
+        unitPrice: tt.price,
+        subtotal: tt.price * item.quantity,
+      };
+    }),
   });
 
   // Create Stripe payment intent
