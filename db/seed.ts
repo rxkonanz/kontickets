@@ -83,14 +83,14 @@ async function main() {
 
   // $0.99 ticket type (price in cents = 99)
   const existing = await prisma.ticketType.findFirst({
-    where: { eventId: event.id, name: "Entrada General" },
+    where: { eventId: event.id, name: "Buebele, prueba esta compra! - RK" },
   });
 
   if (!existing) {
     await prisma.ticketType.create({
       data: {
         eventId: event.id,
-        name: "Entrada General",
+        name: "Buebele, prueba esta compra! - RK",
         description: "Acceso general al evento de prueba",
         price: 99, // $0.99 in cents
         capacity: 100,
@@ -98,7 +98,7 @@ async function main() {
         sortOrder: 0,
       },
     });
-    console.log("✓ Ticket type: Entrada General — $0.99");
+    console.log("✓ Ticket type: Buebele, prueba esta compra! - RK — $0.99");
   } else {
     console.log("✓ Ticket type already exists — skipped");
   }
