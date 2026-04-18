@@ -74,7 +74,9 @@ export async function getEventBySlug(slug: string): Promise<EventWithDetails | n
   if (!isDbConfigured()) return MOCK_EVENTS.find((e) => e.slug === slug) ?? null;
 
   try {
-    const result = await prisma.event.findUnique({
+    // Use findMany instead of findUnique — Prisma 7 with PrismaNeonHttp routes
+    // findUnique through a DataLoader that wraps queries in transactions (unsupported).
+    const results = await prisma.event.findMany({
       where: { slug },
       include: {
         organizer: true,
@@ -82,8 +84,9 @@ export async function getEventBySlug(slug: string): Promise<EventWithDetails | n
         sessions: { orderBy: { startAt: "asc" } },
         ticketTypes: { orderBy: { sortOrder: "asc" } },
       },
-    }) as EventWithDetails | null;
-    return result ?? MOCK_EVENTS.find((e) => e.slug === slug) ?? null;
+      take: 1,
+    }) as EventWithDetails[];
+    return results[0] ?? MOCK_EVENTS.find((e) => e.slug === slug) ?? null;
   } catch {
     return MOCK_EVENTS.find((e) => e.slug === slug) ?? null;
   }

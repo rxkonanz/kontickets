@@ -5,69 +5,63 @@ import type { CartItem } from "@/types";
 
 /**
  * Issue tickets after payment is confirmed.
- * Should be called from the Stripe webhook handler only.
- * Wrapped in a transaction for safety.
+ * Called from the Stripe webhook handler only.
+ *
+ * NOTE: PrismaNeonHttp does NOT support interactive transactions.
+ * We use sequential queries instead. The webhook handler should be
+ * idempotent — we check order status before issuing.
  */
 export async function issueTickets(orderId: string): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
-      include: {
-        items: {
-          include: { ticketType: true },
-        },
-      },
-    });
-
-    if (!order) throw new Error(`Pedido no encontrado: ${orderId}`);
-    if (order.status === "CONFIRMED") {
-      // Already confirmed (idempotent — safe to skip)
-      return;
-    }
-
-    // Issue one ticket per quantity in each order item
-    for (const item of order.items) {
-      for (let i = 0; i < item.quantity; i++) {
-        await tx.ticket.create({
-          data: {
-            code: nanoid(12).toUpperCase(),
-            orderId: order.id,
-            userId: order.userId,
-            ticketTypeId: item.ticketTypeId,
-            status: "ISSUED",
-            issuedAt: new Date(),
-          },
-        });
-      }
-    }
-
-    // Confirm order
-    await tx.order.update({
-      where: { id: orderId },
-      data: {
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-      },
-    });
-
-    // Update payment to PAID
-    await tx.payment.updateMany({
-      where: { orderId, status: { in: ["INITIATED", "PENDING", "AUTHORIZED"] } },
-      data: { status: "PAID", paidAt: new Date() },
-    });
-  });
-
-  // Confirm inventory outside the main transaction (separate update)
-  const order = await prisma.order.findUnique({
+  // 1. Load order + items (use findMany to avoid DataLoader transactions)
+  const orders = await prisma.order.findMany({
     where: { id: orderId },
-    include: { items: true },
+    include: {
+      items: {
+        include: { ticketType: true },
+      },
+    },
+    take: 1,
   });
 
-  if (order) {
-    const cartItems: CartItem[] = order.items.map((item) => ({
+  const order = orders[0];
+  if (!order) throw new Error(`Pedido no encontrado: ${orderId}`);
+
+  // Idempotent — if already confirmed, skip
+  if (order.status === "CONFIRMED") return;
+
+  // 2. Issue one ticket per quantity in each order item
+  for (const item of order.items) {
+    const ticketData = Array.from({ length: item.quantity }, () => ({
+      code: nanoid(12).toUpperCase(),
+      orderId: order.id,
+      userId: order.userId,
       ticketTypeId: item.ticketTypeId,
-      quantity: item.quantity,
+      status: "ISSUED" as const,
+      issuedAt: new Date(),
     }));
-    await confirmInventory(cartItems);
+
+    await prisma.ticket.createMany({ data: ticketData });
   }
+
+  // 3. Confirm order
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: "CONFIRMED",
+      confirmedAt: new Date(),
+    },
+  });
+
+  // 4. Update payment to PAID
+  await prisma.payment.updateMany({
+    where: { orderId, status: { in: ["INITIATED", "PENDING", "AUTHORIZED"] } },
+    data: { status: "PAID", paidAt: new Date() },
+  });
+
+  // 5. Confirm inventory (move reserved → sold)
+  const cartItems: CartItem[] = order.items.map((item) => ({
+    ticketTypeId: item.ticketTypeId,
+    quantity: item.quantity,
+  }));
+  await confirmInventory(cartItems);
 }

@@ -23,10 +23,13 @@ export async function createEvent(formData: FormData) {
   }
 
   // Ensure organizer belongs to user
-  const user = await prisma.user.findUnique({
+  // Use findMany to avoid Prisma DataLoader transactions (unsupported in HTTP mode)
+  const users = await prisma.user.findMany({
     where: { clerkId: userId },
     include: { organizer: true },
+    take: 1,
   });
+  const user = users[0] ?? null;
 
   if (!user?.organizer || user.organizer.id !== organizerId) {
     throw new Error("No autorizado");
@@ -34,9 +37,10 @@ export async function createEvent(formData: FormData) {
 
   // Generate unique slug
   let slug = slugify(title);
-  const existing = await prisma.event.findUnique({ where: { slug } });
-  if (existing) slug = `${slug}-${nanoid(4).toLowerCase()}`;
+  const existingSlugs = await prisma.event.findMany({ where: { slug }, take: 1 });
+  if (existingSlugs.length > 0) slug = `${slug}-${nanoid(4).toLowerCase()}`;
 
+  // Create event first, then session separately — nested creates trigger transactions
   const event = await prisma.event.create({
     data: {
       organizerId,
@@ -45,13 +49,15 @@ export async function createEvent(formData: FormData) {
       description: description || null,
       category,
       status: "DRAFT",
-      sessions: {
-        create: {
-          startAt: new Date(startAt),
-          endAt: endAt ? new Date(endAt) : null,
-          timezone: "America/Guayaquil",
-        },
-      },
+    },
+  });
+
+  await prisma.eventSession.create({
+    data: {
+      eventId: event.id,
+      startAt: new Date(startAt),
+      endAt: endAt ? new Date(endAt) : null,
+      timezone: "America/Guayaquil",
     },
   });
 
@@ -62,16 +68,21 @@ export async function updateEvent(eventId: string, formData: FormData) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  const user = await prisma.user.findUnique({
+  const users2 = await prisma.user.findMany({
     where: { clerkId: userId },
     include: { organizer: true },
+    take: 1,
   });
+  const user = users2[0] ?? null;
 
   if (!user?.organizer) throw new Error("No autorizado");
 
-  const event = await prisma.event.findFirst({
+  // Use findMany instead of findFirst — findFirst triggers internal transactions
+  const events = await prisma.event.findMany({
     where: { id: eventId, organizerId: user.organizer.id },
+    take: 1,
   });
+  const event = events[0] ?? null;
 
   if (!event) throw new Error("Evento no encontrado");
 

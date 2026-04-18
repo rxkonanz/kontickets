@@ -23,12 +23,13 @@ export default async function CheckoutPage({
   const { eventId } = await searchParams;
   if (!eventId) redirect("/events");
 
-  // Use separate queries instead of findUnique+include — Prisma 7 HTTP mode
-  // (PrismaNeonHttp) triggers internal transactions for findUnique with includes,
-  // but simple findUnique/findMany without includes works fine.
+  // Use findMany instead of findUnique — Prisma 7 with PrismaNeonHttp routes
+  // findUnique through an internal DataLoader (singleLoader) that wraps queries
+  // in a transaction, which is not supported in HTTP mode.
   let event;
   try {
-    event = await prisma.event.findUnique({ where: { id: eventId } });
+    const events = await prisma.event.findMany({ where: { id: eventId }, take: 1 });
+    event = events[0] ?? null;
   } catch (err) {
     console.error("[CheckoutPage] event lookup failed:", err);
     redirect("/events");
@@ -40,7 +41,9 @@ export default async function CheckoutPage({
   let ticketTypes: Awaited<ReturnType<typeof prisma.ticketType.findMany>> = [];
   try {
     [venue, ticketTypes] = await Promise.all([
-      event.venueId ? prisma.venue.findUnique({ where: { id: event.venueId } }) : null,
+      event.venueId
+        ? prisma.venue.findMany({ where: { id: event.venueId }, take: 1 }).then((r) => r[0] ?? null)
+        : null,
       prisma.ticketType.findMany({
         where: { eventId: event.id },
         orderBy: { sortOrder: "asc" },

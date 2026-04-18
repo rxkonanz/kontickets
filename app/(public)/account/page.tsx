@@ -28,10 +28,13 @@ export default async function AccountPage() {
   let orderCount = 0;
   let ticketCount = 0;
   try {
-    const dbUser = await prisma.user.findUnique({
+    // Use findMany to avoid Prisma DataLoader transactions (unsupported in HTTP mode)
+    const dbUsers = await prisma.user.findMany({
       where: { clerkId: userId },
       select: { _count: { select: { orders: true, tickets: true } } },
+      take: 1,
     });
+    const dbUser = dbUsers[0] ?? null;
     if (dbUser) {
       orderCount = dbUser._count.orders;
       ticketCount = dbUser._count.tickets;

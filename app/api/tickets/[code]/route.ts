@@ -8,7 +8,8 @@ export async function GET(
   const { code } = await params;
 
   try {
-    const ticket = await prisma.ticket.findUnique({
+    // Use findMany to avoid Prisma DataLoader transactions (unsupported in HTTP mode)
+    const tickets = await prisma.ticket.findMany({
       where: { code },
       include: {
         attendee: true,
@@ -19,7 +20,10 @@ export async function GET(
           },
         },
       },
+      take: 1,
     });
+
+    const ticket = tickets[0];
 
     if (!ticket) {
       return NextResponse.json(
