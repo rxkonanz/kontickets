@@ -16,8 +16,21 @@ export async function createOrderIntent(
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  const user = await prisma.user.findUnique({ where: { clerkId: userId } });
-  if (!user) throw new Error("Usuario no encontrado");
+  // Upsert user — handles case where Clerk webhook hasn't fired yet
+  const { currentUser } = await import("@clerk/nextjs/server");
+  const clerkUser = await currentUser();
+  const user = await prisma.user.upsert({
+    where: { clerkId: userId },
+    update: {},
+    create: {
+      clerkId: userId,
+      email: clerkUser?.emailAddresses[0]?.emailAddress ?? `${userId}@unknown.com`,
+      firstName: clerkUser?.firstName ?? null,
+      lastName: clerkUser?.lastName ?? null,
+      imageUrl: clerkUser?.imageUrl ?? null,
+      role: "BUYER",
+    },
+  });
 
   // Validate items belong to the event
   const ticketTypes = await prisma.ticketType.findMany({
