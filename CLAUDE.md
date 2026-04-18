@@ -14,7 +14,7 @@ You must operate through specialized internal agents and coordinate their work.
 
 ## Development Commands
 
-> This project is greenfield — initialize with `npx create-next-app@latest` using TypeScript + Tailwind + App Router. Once initialized, the standard commands will be:
+> Project is already initialized and deployed at kontickets.com. Standard commands:
 
 ```bash
 # Install dependencies

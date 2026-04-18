@@ -104,6 +104,7 @@ model User {
   firstName String?
   lastName  String?
   phone     String?
+  city      String?
   imageUrl  String?
   role      Role     @default(BUYER)
   createdAt DateTime @default(now())

@@ -4,29 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Menu, Ticket, User } from "lucide-react";
+import { Menu, Ticket, User as UserIcon } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-
-const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
-const clerkEnabled = clerkKey.startsWith("pk_") && !clerkKey.includes("placeholder");
-
-// Only import Clerk components when configured — evaluated once at module level
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const clerk = clerkEnabled ? require("@clerk/nextjs") : null;
-const ClerkSignedIn = clerk?.SignedIn as
-  | React.ComponentType<{ children: React.ReactNode }>
-  | undefined;
-const ClerkSignedOut = clerk?.SignedOut as
-  | React.ComponentType<{ children: React.ReactNode }>
-  | undefined;
-const ClerkUserButton = clerk?.UserButton as React.ComponentType | undefined;
-const ClerkSignInButton = clerk?.SignInButton as
-  | React.ComponentType<{ mode: string; children: React.ReactNode }>
-  | undefined;
-const ClerkSignUpButton = clerk?.SignUpButton as
-  | React.ComponentType<{ mode: string; children: React.ReactNode }>
-  | undefined;
+import { SignInButton, SignUpButton, useUser } from "@clerk/nextjs";
+import Image from "next/image";
 
 const navLinks = [
   { href: "/events", label: "Eventos" },
@@ -34,18 +16,92 @@ const navLinks = [
   { href: "/events?category=CONFERENCE", label: "Conferencias" },
 ];
 
+function SignedInContent() {
+  const { user, isLoaded } = useUser();
+
+  if (!isLoaded) {
+    return <div className="w-9 h-9 rounded-full bg-gray-200 animate-pulse" />;
+  }
+
+  const name = user?.firstName?.trim();
+  const imageUrl = user?.imageUrl;
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" asChild className="hidden md:flex">
+        <Link href="/account/tickets">
+          <Ticket className="w-4 h-4 mr-1.5" />
+          Mis tickets
+        </Link>
+      </Button>
+      <Link
+        href="/account"
+        className="flex items-center gap-2.5 group"
+        aria-label="Mi cuenta"
+      >
+        {name && (
+          <span className="hidden sm:inline-block text-sm font-medium text-[#0d0d5c] group-hover:text-[#3b82f6] transition-colors">
+            Hola, {name}
+          </span>
+        )}
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={name ?? "Mi cuenta"}
+            width={36}
+            height={36}
+            className="w-9 h-9 rounded-full object-cover ring-2 ring-[#3b82f6]/20 group-hover:ring-[#3b82f6]/60 transition-all"
+          />
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-[#0d0d5c] flex items-center justify-center ring-2 ring-[#3b82f6]/20 group-hover:ring-[#3b82f6]/60 transition-all">
+            <UserIcon className="w-4 h-4 text-white" />
+          </div>
+        )}
+      </Link>
+    </>
+  );
+}
+
+function SignedOutContent() {
+  return (
+    <>
+      <SignInButton mode="modal" forceRedirectUrl="/onboarding">
+        <Button variant="ghost" size="sm" className="hidden sm:flex">
+          Iniciar sesión
+        </Button>
+      </SignInButton>
+      <SignUpButton mode="modal" forceRedirectUrl="/onboarding">
+        <Button
+          size="sm"
+          className="gradient-brand-cta text-white border-0 hover:opacity-90"
+        >
+          Registrarse
+        </Button>
+      </SignUpButton>
+    </>
+  );
+}
+
+function AuthSection() {
+  const { isLoaded, isSignedIn } = useUser();
+  if (!isLoaded) {
+    // Render a placeholder to keep layout stable during hydration
+    return <div className="w-9 h-9" />;
+  }
+  return isSignedIn ? <SignedInContent /> : <SignedOutContent />;
+}
+
 export function PublicNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { isSignedIn } = useUser();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <nav className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="font-bold text-xl text-[#0d0d5c]">
-            Kontickets
-          </span>
+          <span className="font-bold text-xl text-[#0d0d5c]">Kontickets</span>
         </Link>
 
         {/* Desktop nav links */}
@@ -68,69 +124,7 @@ export function PublicNav() {
 
         {/* Auth section */}
         <div className="flex items-center gap-3">
-          {clerkEnabled && ClerkSignedIn && ClerkSignedOut ? (
-            <>
-              <ClerkSignedIn>
-                <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
-                  <Link href="/account/tickets">
-                    <Ticket className="w-4 h-4 mr-1.5" />
-                    Mis tickets
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
-                  <Link href="/account">
-                    <User className="w-4 h-4 mr-1.5" />
-                    Mi cuenta
-                  </Link>
-                </Button>
-                {ClerkUserButton && <ClerkUserButton />}
-              </ClerkSignedIn>
-              <ClerkSignedOut>
-                {ClerkSignInButton ? (
-                  <ClerkSignInButton mode="modal">
-                    <Button variant="ghost" size="sm" className="hidden sm:flex">
-                      Iniciar sesión
-                    </Button>
-                  </ClerkSignInButton>
-                ) : (
-                  <Button variant="ghost" size="sm" className="hidden sm:flex" asChild>
-                    <Link href="/sign-in">Iniciar sesión</Link>
-                  </Button>
-                )}
-                {ClerkSignUpButton ? (
-                  <ClerkSignUpButton mode="modal">
-                    <Button
-                      size="sm"
-                      className="gradient-brand-cta text-white border-0 hover:opacity-90"
-                    >
-                      Registrarse
-                    </Button>
-                  </ClerkSignUpButton>
-                ) : (
-                  <Button
-                    size="sm"
-                    className="gradient-brand-cta text-white border-0 hover:opacity-90"
-                    asChild
-                  >
-                    <Link href="/sign-up">Registrarse</Link>
-                  </Button>
-                )}
-              </ClerkSignedOut>
-            </>
-          ) : (
-            <>
-              <Button variant="ghost" size="sm" className="hidden sm:flex" asChild>
-                <Link href="/sign-in">Iniciar sesión</Link>
-              </Button>
-              <Button
-                size="sm"
-                className="gradient-brand-cta text-white border-0 hover:opacity-90"
-                asChild
-              >
-                <Link href="/sign-up">Registrarse</Link>
-              </Button>
-            </>
-          )}
+          <AuthSection />
 
           {/* Mobile menu */}
           <Sheet open={open} onOpenChange={setOpen}>
@@ -151,8 +145,8 @@ export function PublicNav() {
                     {link.label}
                   </Link>
                 ))}
-                {clerkEnabled && ClerkSignedIn && (
-                  <ClerkSignedIn>
+                {isSignedIn && (
+                  <>
                     <Link
                       href="/account"
                       onClick={() => setOpen(false)}
@@ -167,7 +161,7 @@ export function PublicNav() {
                     >
                       Mis tickets
                     </Link>
-                  </ClerkSignedIn>
+                  </>
                 )}
               </div>
             </SheetContent>

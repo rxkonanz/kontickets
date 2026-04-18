@@ -7,8 +7,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UpdateNameForm } from "@/components/account/UpdateNameForm";
+import { SignOutRow } from "@/components/account/SignOutRow";
 import { prisma } from "@/lib/prisma";
-import { ShoppingBag, Ticket, User, AlertTriangle } from "lucide-react";
+import { ShoppingBag, Ticket, User, AlertTriangle, MapPin } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 export default async function AccountPage() {
@@ -24,20 +25,25 @@ export default async function AccountPage() {
     ? `${user.firstName} ${user.lastName}`
     : email;
 
-  // Stats — graceful fallback if DB not yet configured or webhook hasn't fired
+  // Stats + city — graceful fallback if DB not yet configured or webhook hasn't fired
   let orderCount = 0;
   let ticketCount = 0;
+  let city: string | null = null;
   try {
     // Use findMany to avoid Prisma DataLoader transactions (unsupported in HTTP mode)
     const dbUsers = await prisma.user.findMany({
       where: { clerkId: userId },
-      select: { _count: { select: { orders: true, tickets: true } } },
+      select: {
+        city: true,
+        _count: { select: { orders: true, tickets: true } },
+      },
       take: 1,
     });
     const dbUser = dbUsers[0] ?? null;
     if (dbUser) {
       orderCount = dbUser._count.orders;
       ticketCount = dbUser._count.tickets;
+      city = dbUser.city;
     }
   } catch {
     // DB not configured — ignore
@@ -66,7 +72,13 @@ export default async function AccountPage() {
             <div className="min-w-0">
               <h1 className="text-2xl font-bold truncate">{displayName}</h1>
               <p className="text-muted-foreground text-sm truncate">{email}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              {city && (
+                <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                  <MapPin className="w-3 h-3" />
+                  {city}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Miembro desde {formatDate(new Date(user.createdAt))}
               </p>
             </div>
@@ -118,7 +130,7 @@ export default async function AccountPage() {
       </div>
 
       {/* Navigation */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 mb-6">
         <Button
           variant="outline"
           size="lg"
@@ -142,6 +154,9 @@ export default async function AccountPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Sign out */}
+      <SignOutRow />
     </div>
   );
 }
