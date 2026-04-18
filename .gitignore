@@ -36,9 +36,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma
-/prisma/migrations
-
+# prisma generated client (rebuilt at deploy time)
 /lib/generated/prisma
 
 # Personal notes
