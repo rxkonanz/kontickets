@@ -10,22 +10,35 @@ export default async function CheckoutPage({
 }: {
   searchParams: Promise<{ eventId?: string }>;
 }) {
-  const { userId } = await auth();
+  let userId: string | null = null;
+  try {
+    const authResult = await auth();
+    userId = authResult.userId;
+  } catch (err) {
+    console.error("[CheckoutPage] auth() failed:", err);
+    redirect("/sign-in");
+  }
   if (!userId) redirect("/sign-in");
 
   const { eventId } = await searchParams;
   if (!eventId) redirect("/events");
 
-  const event = await prisma.event.findUnique({
-    where: { id: eventId, status: "PUBLISHED" },
-    include: {
-      venue: true,
-      ticketTypes: {
-        where: { isVisible: true },
-        orderBy: { sortOrder: "asc" },
+  let event;
+  try {
+    event = await prisma.event.findFirst({
+      where: { id: eventId, status: "PUBLISHED" },
+      include: {
+        venue: true,
+        ticketTypes: {
+          where: { isVisible: true },
+          orderBy: { sortOrder: "asc" },
+        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.error("[CheckoutPage] prisma.event.findFirst failed:", err);
+    redirect("/events");
+  }
 
   if (!event) redirect("/events");
 
