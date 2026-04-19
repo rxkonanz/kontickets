@@ -10,7 +10,7 @@ import { TicketQRCode } from "@/components/shared/TicketQRCode";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
-import { Ticket, Calendar, MapPin } from "lucide-react";
+import { Ticket as TicketIcon, Calendar, MapPin } from "lucide-react";
 
 export default async function AccountTicketsPage() {
   const { userId } = await auth();
@@ -56,23 +56,18 @@ export default async function AccountTicketsPage() {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-3xl">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold">Mis entradas</h1>
-          <p className="text-muted-foreground mt-1">
-            {tickets.length} entrada{tickets.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/account/orders">Ver pedidos</Link>
-        </Button>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold">Mis tickets</h1>
+        <p className="text-muted-foreground mt-1">
+          {tickets.length} ticket{tickets.length !== 1 ? "s" : ""}
+        </p>
       </div>
 
       {tickets.length === 0 ? (
         <EmptyState
-          icon={<Ticket className="w-12 h-12" />}
-          title="Aún no tienes entradas"
-          description="Cuando compres entradas aparecerán aquí."
+          icon={<TicketIcon className="w-12 h-12" />}
+          title="Aún no tienes tickets"
+          description="Cuando compres tickets aparecerán aquí."
           action={
             <Button asChild className="gradient-brand-cta text-white border-0 hover:opacity-90">
               <Link href="/events">Explorar eventos</Link>
