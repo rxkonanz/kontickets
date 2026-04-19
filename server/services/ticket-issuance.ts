@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { nanoid } from "nanoid";
 import { confirmInventory } from "./inventory";
+// import { sendTicketConfirmationEmail } from "./email";
 import type { CartItem } from "@/types";
 
 /**
@@ -40,7 +41,11 @@ export async function issueTickets(orderId: string): Promise<void> {
       issuedAt: new Date(),
     }));
 
-    await prisma.ticket.createMany({ data: ticketData });
+    // createMany wraps in a transaction (unsupported in HTTP mode).
+    // Loop of singular create() — OK for small N (tickets per order).
+    for (const t of ticketData) {
+      await prisma.ticket.create({ data: t });
+    }
   }
 
   // 3. Confirm order
@@ -52,11 +57,14 @@ export async function issueTickets(orderId: string): Promise<void> {
     },
   });
 
-  // 4. Update payment to PAID
-  await prisma.payment.updateMany({
-    where: { orderId, status: { in: ["INITIATED", "PENDING", "AUTHORIZED"] } },
-    data: { status: "PAID", paidAt: new Date() },
-  });
+  // 4. Update payment to PAID — raw SQL because updateMany wraps in a tx
+  // and the where uses a non-unique composite filter.
+  await prisma.$executeRaw`
+    UPDATE "payments"
+    SET    "status" = 'PAID', "paidAt" = NOW()
+    WHERE  "orderId" = ${orderId}
+      AND  "status" IN ('INITIATED', 'PENDING', 'AUTHORIZED')
+  `;
 
   // 5. Confirm inventory (move reserved → sold)
   const cartItems: CartItem[] = order.items.map((item) => ({
@@ -64,4 +72,7 @@ export async function issueTickets(orderId: string): Promise<void> {
     quantity: item.quantity,
   }));
   await confirmInventory(cartItems);
+
+  // 6. Email ticket confirmation — disabled until Resend domain is verified.
+  // await sendTicketConfirmationEmail(orderId);
 }

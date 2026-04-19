@@ -62,26 +62,37 @@ export async function completeOnboarding(
     const client = await clerkClient();
     await client.users.updateUser(userId, { firstName, lastName });
 
-    // Upsert DB user (webhook may not be configured yet)
-    await prisma.user.upsert({
+    // Find-or-create + update — upsert wraps in a transaction (unsupported
+    // in Prisma HTTP mode). findMany + singular create/update are safe.
+    const existing = await prisma.user.findMany({
       where: { clerkId: userId },
-      create: {
-        clerkId: userId,
-        email,
-        firstName,
-        lastName,
-        city,
-        imageUrl: user?.imageUrl ?? null,
-        role,
-      },
-      update: {
-        email,
-        firstName,
-        lastName,
-        city,
-        imageUrl: user?.imageUrl ?? null,
-      },
+      select: { id: true },
+      take: 1,
     });
+    if (existing.length === 0) {
+      await prisma.user.create({
+        data: {
+          clerkId: userId,
+          email,
+          firstName,
+          lastName,
+          city,
+          imageUrl: user?.imageUrl ?? null,
+          role,
+        },
+      });
+    } else {
+      await prisma.user.update({
+        where: { clerkId: userId },
+        data: {
+          email,
+          firstName,
+          lastName,
+          city,
+          imageUrl: user?.imageUrl ?? null,
+        },
+      });
+    }
   } catch {
     return { error: "No se pudo guardar tu perfil. Intenta de nuevo." };
   }

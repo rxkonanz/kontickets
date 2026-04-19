@@ -48,24 +48,36 @@ export async function POST(req: Request) {
     const email = data.email_addresses[0]?.email_address;
     const role = (data.public_metadata?.role ?? "BUYER") as Role;
 
-    await prisma.user.upsert({
+    // upsert wraps in a transaction (unsupported in Prisma HTTP mode).
+    // findMany + conditional create/update uses only single-statement ops.
+    const existing = await prisma.user.findMany({
       where: { clerkId: data.id },
-      create: {
-        clerkId: data.id,
-        email,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        imageUrl: data.image_url,
-        role,
-      },
-      update: {
-        email,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        imageUrl: data.image_url,
-        role,
-      },
+      select: { id: true },
+      take: 1,
     });
+    if (existing.length === 0) {
+      await prisma.user.create({
+        data: {
+          clerkId: data.id,
+          email,
+          firstName: data.first_name,
+          lastName: data.last_name,
+          imageUrl: data.image_url,
+          role,
+        },
+      });
+    } else {
+      await prisma.user.update({
+        where: { clerkId: data.id },
+        data: {
+          email,
+          firstName: data.first_name,
+          lastName: data.last_name,
+          imageUrl: data.image_url,
+          role,
+        },
+      });
+    }
   }
 
   if (type === "user.deleted") {

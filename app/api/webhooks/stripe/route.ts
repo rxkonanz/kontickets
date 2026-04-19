@@ -40,7 +40,8 @@ export async function POST(req: Request) {
       const pi = event.data.object as Stripe.PaymentIntent;
       const orderId = pi.metadata?.orderId;
       if (orderId) {
-        await prisma.payment.updateMany({
+        // providerPaymentId is @unique — singular update is safe
+        await prisma.payment.update({
           where: { providerPaymentId: pi.id },
           data: {
             status: "FAILED",
@@ -48,10 +49,13 @@ export async function POST(req: Request) {
             failureMessage: pi.last_payment_error?.message ?? null,
           },
         });
-        await prisma.order.updateMany({
-          where: { id: orderId, status: "PENDING_PAYMENT" },
-          data: { status: "CANCELLED", cancelledAt: new Date() },
-        });
+        // Compound where (id + status) — raw SQL since updateMany wraps in a tx
+        await prisma.$executeRaw`
+          UPDATE "orders"
+          SET    "status" = 'CANCELLED', "cancelledAt" = NOW()
+          WHERE  "id" = ${orderId}
+            AND  "status" = 'PENDING_PAYMENT'
+        `;
       }
       break;
     }
@@ -59,7 +63,7 @@ export async function POST(req: Request) {
     case "charge.refunded": {
       const charge = event.data.object as Stripe.Charge;
       if (charge.payment_intent) {
-        await prisma.payment.updateMany({
+        await prisma.payment.update({
           where: { providerPaymentId: charge.payment_intent as string },
           data: { status: "REFUNDED" },
         });

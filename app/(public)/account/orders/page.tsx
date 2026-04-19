@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -15,10 +17,13 @@ export default async function AccountOrdersPage() {
   const { userId } = await clerkAuth();
   if (!userId) redirect("/sign-in");
 
-  const user = await prisma.user.findUnique({
+  // findUnique wraps in a transaction (unsupported in Prisma HTTP mode)
+  const users = await prisma.user.findMany({
     where: { clerkId: userId },
     select: { id: true },
+    take: 1,
   });
+  const user = users[0];
   if (!user) redirect("/sign-in");
 
   const orders = await getOrdersByUser(user.id);
