@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/api/webhooks(.*)",
   "/api/events(.*)",
+  "/api/bot(.*)",
 ]);
 
 const isOrganizerRoute = createRouteMatcher(["/organizer(.*)"]);
